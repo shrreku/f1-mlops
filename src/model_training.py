@@ -11,6 +11,19 @@ from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.metrics import precision_score, recall_score, make_scorer
 import joblib, os
 
+# Custom scorers to handle Isolation Forest output (-1 anomaly, 1 normal)
+def isoforest_recall_scorer(y_true, y_pred):
+    # Convert predictions to binary (1=anomaly, 0=normal)
+    y_pred_binary = np.array([1 if pred == -1 else 0 for pred in y_pred])
+    # Calculate recall for the positive class (1)
+    return recall_score(y_true, y_pred_binary, pos_label=1)
+
+def isoforest_precision_scorer(y_true, y_pred):
+    # Convert predictions to binary (1=anomaly, 0=normal)
+    y_pred_binary = np.array([1 if pred == -1 else 0 for pred in y_pred])
+    # Calculate precision for the positive class (1), handle zero division
+    return precision_score(y_true, y_pred_binary, pos_label=1, zero_division=0)
+
 def train_isolation_forest(X, y, test_size=0.2, random_state=42):
     """
     Train an IsolationForest model and log metrics to MLflow.
@@ -21,6 +34,8 @@ def train_isolation_forest(X, y, test_size=0.2, random_state=42):
     Returns:
         Trained IsolationForest model.
     """
+    # Ensure y is a NumPy array to prevent potential MLflow logging issues
+    y = np.array(y)
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=test_size, random_state=random_state, stratify=y # Stratify for imbalanced data
     )
@@ -35,8 +50,12 @@ def train_isolation_forest(X, y, test_size=0.2, random_state=42):
     # Use recall as the primary scoring metric due to imbalance
     # Note: IsolationForest predicts -1 for anomalies (fraud), 1 for normal.
     # We need a custom scorer because default recall assumes 1 is the positive class.
-    # Our conversion maps -1 -> 1 (fraud), 1 -> 0 (normal), so standard recall works.
-    scoring = {'recall': make_scorer(recall_score), 'precision': make_scorer(precision_score)}
+    # Our conversion maps -1 -> 1 (fraud), 1 -> 0 (normal).
+    # Use custom scorers within GridSearchCV to handle this conversion during CV.
+    scoring = {
+        'recall': make_scorer(isoforest_recall_scorer),
+        'precision': make_scorer(isoforest_precision_scorer)
+    }
 
     # Initialize Isolation Forest
     iso_forest = IsolationForest(random_state=random_state)
