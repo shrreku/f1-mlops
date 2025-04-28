@@ -24,7 +24,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Train fraud detection on Kaggle')
     parser.add_argument(
         '--data-dir', type=str,
-        default='/kaggle/input/mlg-ulb-creditcardfraud',
+        default='/kaggle/input/creditcardfraud',
         help='Directory containing the Kaggle dataset'
     )
     parser.add_argument(
