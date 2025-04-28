@@ -3,6 +3,8 @@ Module for training and evaluating fraud detection models.
 """
 import mlflow
 import mlflow.sklearn
+import matplotlib.pyplot as plt
+import seaborn as sns
 from sklearn.ensemble import IsolationForest
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import precision_score, recall_score
@@ -33,6 +35,25 @@ def train_isolation_forest(X, y, test_size=0.2, random_state=42):
         recall = recall_score(y_test, y_pred)
         mlflow.log_metric("precision", precision)
         mlflow.log_metric("recall", recall)
+
+        # Print metrics
+        print(f"Test Precision: {precision:.4f}")
+        print(f"Test Recall: {recall:.4f}")
+
+        # Visualize anomaly scores
+        anomaly_scores = model.decision_function(X_test)
+        plt.figure(figsize=(10, 6))
+        sns.histplot(anomaly_scores, bins=50, kde=True)
+        plt.title('Distribution of Anomaly Scores on Test Set')
+        plt.xlabel('Anomaly Score')
+        plt.ylabel('Frequency')
+        # Ensure artifacts directory exists before saving plot
+        os.makedirs('artifacts', exist_ok=True)
+        plot_path = os.path.join('artifacts', 'anomaly_scores_distribution.png')
+        plt.savefig(plot_path)
+        print(f"Anomaly score distribution plot saved to {plot_path}")
+        mlflow.log_artifact(plot_path)
+
     return model
 
 def save_artifacts(model, preprocessor, path: str):
